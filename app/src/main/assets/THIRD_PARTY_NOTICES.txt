@@ -1,0 +1,10 @@
+LedgerFlow / 钱去哪了
+
+This application uses AndroidX (Android Open Source Project), Kotlin (JetBrains),
+and kotlinx.coroutines (JetBrains and contributors), under Apache License 2.0.
+Their license texts are retained in assets/licenses/.
+
+The user's existing pure Kotlin cashflow forecast engine is reused under MIT:
+Copyright (c) 2026 7panni. See assets/licenses/UserForecast-MIT.txt.
+
+No third-party reference accounting application code or artwork is included.

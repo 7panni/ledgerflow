@@ -1,0 +1,13 @@
+钱去哪了 / LedgerFlow
+Copyright (c) 2026 7panni
+Project source: MIT License; see LICENSE.
+
+Cashflow forecast code reused from https://github.com/7panni/show-me-the-money
+Copyright (c) 2026 7panni, MIT; the original notice is retained in
+app/src/main/assets/licenses/UserForecast-MIT.txt.
+
+Gradle wrapper is provided under Apache-2.0. See docs/licenses/Apache-2.0.txt
+and docs/licenses/Gradle-8.7-NOTICE.txt. Original wrapper script headers remain.
+
+AndroidX, Kotlin, kotlinx.coroutines and other resolved dependencies retain
+their respective licenses; see docs/DEPENDENCIES.md and the application assets.
