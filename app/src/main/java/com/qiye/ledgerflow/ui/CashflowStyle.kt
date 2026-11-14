@@ -115,11 +115,11 @@ data class CashflowBill(
     val amountMinor: Long, val isTransfer: Boolean = false, val detail: String = "", val currencyCode: String = "CNY",
 )
 
-@Composable fun UpcomingEventsCard(upcoming: List<CashflowBill>,onDelete:((String)->Unit)?=null,canDelete:(String)->Boolean={true},onSelect: (String) -> Unit) {
+@Composable fun UpcomingEventsCard(upcoming: List<CashflowBill>,onDelete:((String)->Unit)?=null,canDelete:(String)->Boolean={true},refundAction:(String)->(()->Unit)?={null},onSelect: (String) -> Unit) {
     Column(Modifier.fillMaxWidth().background(Panel).border(1.dp, Line)) {
         upcoming.forEachIndexed { index, event ->
             val date = CivilDate.fromEpochDay(event.epochDay)
-            key(event.id){EntryActionRow(event.id,canDelete(event.id),{onSelect(event.id)},onDelete?.let{remove->{remove(event.id)}}){rowModifier->
+            key(event.id){EntryActionRow(event.id,canDelete(event.id),{onSelect(event.id)},onDelete?.let{remove->{remove(event.id)}},refundAction(event.id)){rowModifier->
             Row(rowModifier.fillMaxWidth().heightIn(min = 66.dp).padding(end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.width(92.dp).height(66.dp)) {
                     if (index < upcoming.lastIndex) Box(Modifier.align(Alignment.BottomStart).offset(x = 18.dp).width(1.dp).height(34.dp).background(Line))

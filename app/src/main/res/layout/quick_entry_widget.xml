@@ -1,1 +1,17 @@
-<TextView xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/quick_entry" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/widget_background" android:gravity="center" android:text="@string/widget_plus" android:textColor="#FFFFFF" android:textSize="42sp" android:contentDescription="@string/widget_description"/>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/quick_entry"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent"
+    android:contentDescription="@string/widget_description"
+    android:importantForAccessibility="yes">
+    <ImageView
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="center"
+        android:background="@drawable/widget_background"
+        android:padding="16dp"
+        android:src="@drawable/widget_plus_icon"
+        android:scaleType="centerInside"
+        android:importantForAccessibility="no" />
+</FrameLayout>

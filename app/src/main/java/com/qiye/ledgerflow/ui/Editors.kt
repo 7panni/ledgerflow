@@ -20,6 +20,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.qiye.ledgerflow.core.*
+import com.qiye.ledgerflow.cashflow.data.RepeatRule
+import com.qiye.ledgerflow.cashflow.ui.PlanFrequencyPicker
+import com.qiyue.cashflow.shared.CoreRepeatRule
 
 // Keep the existing full-page/saveable form lifecycle; reuse EditDialog's panel and spacing.
 @Composable private fun FormPage(title: String, busy: Boolean, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
@@ -35,9 +38,9 @@ import com.qiye.ledgerflow.core.*
     }
 }
 
-@Composable private fun KindPicker(kind: EntryKind, onPick: (EntryKind) -> Unit, allowTransfer: Boolean) {
+@Composable private fun PlanKindPicker(kind: EntryKind, onPick: (EntryKind) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        listOf(EntryKind.EXPENSE,EntryKind.INCOME,EntryKind.TRANSFER,EntryKind.REFUND).filter { allowTransfer || it != EntryKind.TRANSFER }.forEach {
+        listOf(EntryKind.EXPENSE,EntryKind.INCOME).forEach {
             FilterChip(selected = it == kind, onClick = { onPick(it) }, label = { Text(it.label()) })
         }
     }
@@ -62,6 +65,7 @@ import com.qiye.ledgerflow.core.*
     val existing = state.plans.firstOrNull { it.id == id }
     var title by rememberSaveable(id) { mutableStateOf(existing?.title ?: "") }
     var kind by rememberSaveable(id) { mutableStateOf(existing?.kind ?: EntryKind.EXPENSE) }
+    var repeat by rememberSaveable(id) { mutableStateOf(existing?.let { RepeatRule.valueOf(it.repeatRule.name) } ?: RepeatRule.NONE) }
     var amount by rememberSaveable(id) { mutableStateOf(existing?.let { Money.format(it.amountMinor) } ?: "") }
     var date by rememberSaveable(id) { mutableStateOf(LedgerCalendar.format(existing?.dueEpochDay ?: LocalClock.today() + 1)) }
     var category by rememberSaveable(id) { mutableStateOf(existing?.category ?: "其他支出") }
@@ -69,21 +73,23 @@ import com.qiye.ledgerflow.core.*
     var note by rememberSaveable(id) { mutableStateOf(existing?.note ?: "") }
     var error by remember { mutableStateOf<String?>(null) }
     FormPage(if (existing == null) "新增计划" else "编辑计划", vm.busy, onBack) {
-        Text("这里添加一次计划；固定周期、分期与预算可在计划页新增。保存计划只影响预测。", style = MaterialTheme.typography.bodySmall)
-        KindPicker(kind, { kind = it; if (existing == null) category = if (it == EntryKind.INCOME) "其他收入" else "其他支出" }, false)
+        PlanKindPicker(kind) { kind = it; if (existing == null) category = if (it == EntryKind.INCOME) "其他收入" else "其他支出" }
         OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth(), label = { Text("计划名称") }, singleLine = true)
         OutlinedTextField(amount, { amount = it }, Modifier.fillMaxWidth(), label = { Text("预计金额（元）") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
         OutlinedTextField(date, { date = it }, Modifier.fillMaxWidth(), label = { Text("预计日期 YYYY-MM-DD") }, singleLine = true)
+        PlanFrequencyPicker(repeat,{repeat=it})
         CategoryInput(category, { category = it }, kind)
         AccountPicker(state, account, { account = it })
         OutlinedTextField(note, { note = it }, Modifier.fillMaxWidth(), label = { Text("备注（可选）") }, minLines = 2, maxLines = 5)
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(shape = RoundedCornerShape(0.dp), enabled = !vm.busy, modifier = Modifier.fillMaxWidth(), onClick = {
             try {
-                val draft = PlanDraft(title, kind, Money.parse(amount), LedgerCalendar.parse(date), category, account, note)
-                LedgerEngine.savePlan(state, draft, id)
+                val draft = PlanDraft(title, kind, Money.parse(amount), LedgerCalendar.parse(date), category, account, note,
+                    repeatRule=CoreRepeatRule.valueOf(repeat.name))
+                val today=LocalClock.today()
+                LedgerEngine.savePlan(state, draft, id, today)
                 error = null
-                vm.change("计划已保存", onBack) { LedgerEngine.savePlan(it, draft, id) }
+                vm.change("计划已保存", onBack) { LedgerEngine.savePlan(it, draft, id, today) }
             } catch (failure: Exception) { error = failure.message }
         }) { Text(if (vm.busy) "保存中…" else "保存计划") }
         Spacer(Modifier.height(32.dp))

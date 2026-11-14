@@ -37,7 +37,7 @@ internal fun deleteActualEntry(state:LedgerState,id:String):LedgerState {
 
 /** Horizontal slop selects this drag; vertical drags remain with the scrolling parent. */
 @OptIn(ExperimentalFoundationApi::class)
-@Composable internal fun EntryActionRow(id:String,canDelete:Boolean,onEdit:()->Unit,onDelete:(()->Unit)?,content:@Composable (Modifier)->Unit) {
+@Composable internal fun EntryActionRow(id:String,canDelete:Boolean,onEdit:()->Unit,onDelete:(()->Unit)?,onRefund:(()->Unit)?=null,content:@Composable (Modifier)->Unit) {
     var menu by remember(id){mutableStateOf(false)}
     var offset by remember(id){mutableFloatStateOf(0f)}
     val reveal=with(LocalDensity.current){88.dp.toPx()}
@@ -48,16 +48,18 @@ internal fun deleteActualEntry(state:LedgerState,id:String):LedgerState {
         val gesture=Modifier.offset{IntOffset(offset.roundToInt(),0)}.background(Panel)
             .draggable(state=rememberDraggableState{delta->offset=(offset+delta).coerceIn(-reveal,0f)},orientation=Orientation.Horizontal,
                 enabled=onDelete!=null&&canDelete,onDragStarted={menu=false},onDragStopped={velocity->offset=if(offset < -reveal/2||velocity < -500f)-reveal else 0f})
-            .combinedClickable(onClick={offset=0f;onEdit()},onLongClick=if(onDelete!=null)({menu=true})else null)
+            .combinedClickable(onClick={offset=0f;onEdit()},onLongClick=if(onDelete!=null||onRefund!=null)({menu=true})else null)
         content(gesture)
         DropdownMenu(menu,{menu=false}){
             DropdownMenuItem({Text("编辑")},{menu=false;offset=0f;onEdit()})
+            if(onRefund!=null)DropdownMenuItem({Text("退款")},{menu=false;offset=0f;onRefund()})
             DropdownMenuItem({Text("删除")},{menu=false;offset=0f;onDelete?.invoke()},enabled=canDelete)
         }
     }
 }
 
-@Composable internal fun ActualEntryCard(state:LedgerState,entries:List<Entry>,onDelete:(Entry)->Unit,onEntry:(Entry)->Unit) {
+@Composable internal fun ActualEntryCard(state:LedgerState,entries:List<Entry>,onDelete:(Entry)->Unit,onEntry:(Entry)->Unit,onRefund:(Entry)->Unit) {
     val byId=remember(entries){entries.associateBy{it.id}}
-    UpcomingEventsCard(entries.map{it.toBill(state)},onDelete={id->byId[id]?.let(onDelete)},canDelete={id->byId[id]?.let(::entryCanDelete)==true}){id->byId[id]?.let(onEntry)}
+    UpcomingEventsCard(entries.map{it.toBill(state)},onDelete={id->byId[id]?.let(onDelete)},canDelete={id->byId[id]?.let(::entryCanDelete)==true},
+        refundAction={id->byId[id]?.takeIf{it.kind==EntryKind.EXPENSE}?.let{entry->{onRefund(entry)}}}){id->byId[id]?.let(onEntry)}
 }

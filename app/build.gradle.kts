@@ -6,8 +6,8 @@ android {
         applicationId = "com.qiye.ledgerflow"
         minSdk = 26
         targetSdk = 35
-        versionCode = 18
-        versionName = "0.2.14-quickflow"
+        versionCode = 23
+        versionName = "0.2.19-linked-refund"
     }
     buildFeatures { compose = true; buildConfig = true }
     buildTypes {

@@ -4,6 +4,7 @@ import com.qiye.ledgerflow.cashflow.data.*
 import com.qiyue.cashflow.shared.*
 
 object RichLedger {
+    const val CASHFLOW_IMPORT_NOTE = "从现金流备份迁入"
     private val calendar = CoreForecastEngine()
     fun asCore(p: Plan) = CorePlan(p.title,
         if (p.kind.isOutflow()) CoreEntryType.EXPENSE else CoreEntryType.INCOME,
@@ -34,7 +35,8 @@ object RichLedger {
         val planned = occurrenceAmount(p, original)
         val amount = if(p.debtId != null) minOf(planned,if(p.isInterest) interestOutstanding(state,p.debtId) else outstanding(state,p.debtId)) else planned
         require(amount > 0) { "此债务本金已结清" }
-        val result = LedgerEngine.saveEntry(state, EntryDraft(p.kind, amount, day, minute, p.category, p.accountId, note = p.note,
+        val result = LedgerEngine.saveEntry(state, EntryDraft(p.kind, amount, day, minute, p.category, p.accountId, note = p.note.takeUnless { it.isBlank() || it == CASHFLOW_IMPORT_NOTE } ?: p.title,
+            sourceDetails = p.note.takeIf { it == CASHFLOW_IMPORT_NOTE }.orEmpty(),
             categoryId = p.categoryId, subcategory = p.subcategory, currencyCode = p.currencyCode,
             debtId = p.debtId, isInterest = p.isInterest, budgetId = p.budgetId, affectsBudget = p.kind.isOrdinary() && p.usesBudget), today)
         return LedgerEngine.validate(result.copy(entries = result.entries.map { e -> if (e.sequence == state.nextSequence) e.copy(planId = p.id, occurrenceEpochDay = original) else e }))

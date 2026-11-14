@@ -685,6 +685,7 @@ private val shortageMessages = listOf(
 }
 
 @Composable internal fun SettingsPage(state: CashFlowUiState, pad: PaddingValues, vm: CashFlowViewModel) {
+    val uriHandler=LocalUriHandler.current
     var days by remember(state.settings.defaultHorizonDays) { mutableIntStateOf(state.settings.defaultHorizonDays) }
     var hiddenHomeCurrencies by remember(state.settings.hiddenHomeCurrenciesCsv,state.accounts.map{it.currencyCode}) {
         mutableStateOf(parseCurrencyCodeCsv(state.settings.hiddenHomeCurrenciesCsv))
@@ -736,6 +737,31 @@ private val shortageMessages = listOf(
                 }
             }
             Button({vm.updateSettings(days,hiddenHomeCurrencies,hiddenAccountIds,showFinanceTips,financeTipChangesDaily,usdRate,automatic)},Modifier.fillMaxWidth().padding(10.dp),shape=RoundedCornerShape(0.dp)){Text("保存设置",fontSize=11.sp)}
+        } }
+        item { SettingsGroup("关于") {
+            Column(Modifier.fillMaxWidth().padding(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                Text("钱去哪了 ${BuildConfig.VERSION_NAME}",fontSize=11.sp,fontWeight=FontWeight.Bold)
+                Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                    Text("开发者 / Developer",color=Muted,fontSize=9.sp)
+                    Text("尚宸鸣 · Vijjādassī Shang",fontSize=9.sp)
+                }
+                Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                    Text("开发协助 / Developed with",color=Muted,fontSize=9.sp)
+                    Text("Codex",fontSize=9.sp)
+                }
+                Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                    Text("博客 / Blog",color=Muted,fontSize=9.sp)
+                    Text("7panni.com",Modifier.clickable{uriHandler.openUri("https://7panni.com")}.padding(vertical=3.dp),color=Green,fontSize=9.sp)
+                }
+                Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                    Text("项目 / Project",color=Muted,fontSize=9.sp)
+                    Text("https://github.com/7panni/ledgerflow",Modifier.clickable{uriHandler.openUri("https://github.com/7panni/ledgerflow")}.padding(vertical=3.dp),color=Green,fontSize=9.sp)
+                }
+                Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                    Text("配套应用 / Companion app",color=Muted,fontSize=9.sp)
+                    Text("啥时候有钱",Modifier.clickable{uriHandler.openUri("https://github.com/7panni/show-me-the-money")}.padding(vertical=3.dp),color=Green,fontSize=9.sp)
+                }
+            }
         } }
     }
     if(valuations) AssetValuationDialog(state.settings,{valuations=false},vm)
@@ -790,7 +816,7 @@ private enum class InstallmentInputMode { PER_PAYMENT, TOTAL }
     var name by remember {mutableStateOf(old?.name?:"")}
     var amount by remember {mutableStateOf(old?.let{currencyDecimal(it.amountCents,it.currencyCode)}?:"")}
     var type by remember {mutableStateOf(old?.type?.takeIf{it in listOf(EntryType.INCOME,EntryType.EXPENSE)}?:EntryType.EXPENSE)}
-    var repeat by remember {mutableStateOf(old?.repeatRule?.takeIf{it in RepeatRule.entries.toList()}?:RepeatRule.MONTHLY)}
+    var repeat by remember {mutableStateOf(old?.repeatRule?:RepeatRule.MONTHLY)}
     var account by remember {mutableStateOf(old?.accountName?:state.accounts.firstOrNull()?.name.orEmpty())}
     var cryptoSymbol by remember {mutableStateOf(old?.currencyCode?.takeIf{it in listOf("USDT","BTC","LTC")} ?: "USDT")}
     var date by remember {
@@ -836,7 +862,7 @@ private enum class InstallmentInputMode { PER_PAYMENT, TOTAL }
                 save(PlannedTransactionEntity(
                     id=old?.id?:0,name=name.ifBlank{"分期"},type=EntryType.EXPENSE,
                     amountCents=values.first,currencyCode=currency,exchangeRateToCnyMicros=0,
-                    accountName=account,startDateEpochDay=date.toEpochDay(),repeatRule=RepeatRule.MONTHLY,
+                    accountName=account,startDateEpochDay=date.toEpochDay(),repeatRule=repeat,
                     installmentTotal=periods,installmentRemaining=periods-paid,
                     installmentTotalAmountCents=values.second,
                     balanceAppliedThroughEpochDay=old?.balanceAppliedThroughEpochDay
@@ -892,10 +918,11 @@ private enum class InstallmentInputMode { PER_PAYMENT, TOTAL }
                 Text("每期 ${currencyMoney(preview.first,currency)} · 剩余 $remaining 期 · 剩余总额 ${currencyMoney(remainingTotal,currency)}",color=Green,fontWeight=FontWeight.SemiBold)
             }
             Text("当前按无息分期计算。若有利息或手续费，请选择“按总额”并填写实际总还款额。",color=Color.Gray,style=MaterialTheme.typography.bodySmall)
+            PlanFrequencyPicker(repeat,{repeat=it},allowOnce=false)
             DateChoice("下次扣款日期",date){date=it}
         } else {
             MoneyField(amount,{amount=it},"每次金额（${currencyLabel(currency)}）")
-            Text("频率");ChoiceRow(RepeatRule.entries.toList(),repeat,{repeat=it}){repeatLabel(it)}
+            PlanFrequencyPicker(repeat,{repeat=it})
             DateChoice("开始日期",date){date=it}
             Row(verticalAlignment=Alignment.CenterVertically){Checkbox(hasEnd,{hasEnd=it});Text("设置结束日期")}
             if(hasEnd)DateChoice("结束日期",endDate){endDate=it}
@@ -970,7 +997,7 @@ private enum class InstallmentInputMode { PER_PAYMENT, TOTAL }
     }
 }
 
-@Composable private fun AccountDialog(close:()->Unit,save:(AccountEntity)->Unit) {
+@Composable internal fun AccountDialog(close:()->Unit,save:(AccountEntity)->Unit) {
     var name by remember{mutableStateOf("")}
     var balance by remember{mutableStateOf("")}
     var type by remember{mutableStateOf(AccountType.CASH)}
@@ -1370,6 +1397,12 @@ private fun axisMoney(amount:Long):String {
     else "${if(value<0)"−" else ""}${value.absoluteValue.roundToInt()}"
 }
 private fun entryLabel(t:EntryType)=when(t){EntryType.INCOME->"收入";EntryType.EXPENSE->"支出";EntryType.TRANSFER->"转账";EntryType.DEBT->"负债";EntryType.REFUND->"退款"}
+@Composable internal fun PlanFrequencyPicker(selected:RepeatRule,onSelect:(RepeatRule)->Unit,allowOnce:Boolean=true){
+    Text("频率")
+    val shortCycles=listOf(RepeatRule.NONE,RepeatRule.DAILY,RepeatRule.WEEKLY,RepeatRule.MONTHLY)
+    ChoiceRow(if(allowOnce)shortCycles else shortCycles.drop(1),selected,onSelect,::repeatLabel)
+    ChoiceRow(listOf(RepeatRule.QUARTERLY,RepeatRule.SEMIANNUAL,RepeatRule.YEARLY),selected,onSelect,::repeatLabel)
+}
 private fun repeatLabel(r:RepeatRule)=when(r){RepeatRule.NONE->"一次";RepeatRule.DAILY->"每天";RepeatRule.WEEKLY->"每周";RepeatRule.MONTHLY->"每月";RepeatRule.QUARTERLY->"每季度";RepeatRule.SEMIANNUAL->"每半年";RepeatRule.YEARLY->"每年"}
 private fun accountTypeLabel(t:AccountType)=when(t){AccountType.CASH->"现金";AccountType.WECHAT->"微信";AccountType.ALIPAY->"支付宝";AccountType.CMB->"银行";AccountType.PAYPAL->"PayPal";AccountType.CRYPTO->"数字货币";AccountType.CUSTOM->"自定义"}
 private fun currencyLabel(code:String)=when(code.uppercase()){

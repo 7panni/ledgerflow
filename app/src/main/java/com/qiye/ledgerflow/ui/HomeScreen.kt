@@ -20,7 +20,7 @@ import kotlinx.coroutines.ensureActive
 
 private data class HomeActual(val source:LedgerState,val range:LongRange,val summary:Result<PeriodSummary>,val entries:List<Entry>)
 
-@Composable fun HomeScreen(state:LedgerState,padding:PaddingValues,vm:LedgerViewModel,onCorrection:()->Unit,onPlans:()->Unit,onEntry:(Entry)->Unit,onNewEntry:()->Unit,onAllEntries:()->Unit,onDelete:(Entry)->Unit){
+@Composable fun HomeScreen(state:LedgerState,padding:PaddingValues,vm:LedgerViewModel,onCorrection:()->Unit,onPlans:()->Unit,onEntry:(Entry)->Unit,onNewEntry:()->Unit,onAllEntries:()->Unit,onDelete:(Entry)->Unit,onRefund:(Entry)->Unit){
     val today=LocalClock.today();val initial=LedgerCalendar.periodMonth(today,state.settings.monthStartDay)
     var offset by rememberSaveable(state.settings.monthStartDay){mutableIntStateOf(0)}
     val month=initial.plusMonths(offset);val range=LedgerCalendar.period(month.year,month.month,state.settings.monthStartDay)
@@ -44,10 +44,17 @@ private data class HomeActual(val source:LedgerState,val range:LongRange,val sum
             SectionTitle("本期实际账单","记一笔",onNewEntry)
             if(entries==null)CircularProgressIndicator(Modifier.size(16.dp))
             else if(entries.isEmpty())EmptyHint("本期还没有实际账目，待发生计划不计入实际账单。")
-            entries?.take(200)?.groupBy{it.epochDay}.orEmpty().forEach{(day,group)->Text(LedgerCalendar.format(day),color=Muted,fontSize=10.sp);ActualEntryCard(state,group,onDelete,onEntry)}
+            entries?.take(200)?.groupBy{it.epochDay}.orEmpty().forEach{(day,group)->Text(LedgerCalendar.format(day),color=Muted,fontSize=10.sp);ActualEntryCard(state,group,onDelete,onEntry,onRefund)}
             TextButton(onAllEntries){Text(if((entries?.size?:0)>200)"显示最近200条 · 查看全部 ${entries?.size?:0} 条 ›" else "全部账目 / 搜索 ›",fontSize=11.sp)}
         }
     })
 }
 @Composable private fun PeriodMetric(label:String,value:Long)=Column{Text(label,color=Muted,fontSize=9.sp);Text(cashMoney(value),fontWeight=FontWeight.Bold,fontSize=12.sp)}
-fun Entry.toBill(state:LedgerState)=CashflowBill(id,epochDay,(if(kind.isOrdinary())"" else kind.label()+" · ")+category+(if(subcategory.isBlank())"" else " / $subcategory"),state.accountName(accountId)+(if(kind==EntryKind.TRANSFER)" → ${state.accountName(targetAccountId)}" else ""),if(kind.isOutflow())-amountMinor else amountMinor,kind==EntryKind.TRANSFER,listOfNotNull(LocalClock.timeText(minuteOfDay,second),note.takeIf{it.isNotBlank()},tags.takeIf{it.isNotBlank()},if(!affectsBalance||fundsDetached||sequence<=state.fundingBoundary)"历史已隔离 · 不改余额" else null,if(planId!=null)"已确认计划" else null).joinToString(" · "),currencyCode)
+fun Entry.toBill(state:LedgerState)=CashflowBill(id,epochDay,(if(kind.isOrdinary())"" else kind.label()+" · ")+category+(if(subcategory.isBlank())"" else " / $subcategory"),state.accountName(accountId)+(if(kind==EntryKind.TRANSFER)" → ${state.accountName(targetAccountId)}" else ""),if(kind.isOutflow())-amountMinor else amountMinor,kind==EntryKind.TRANSFER,listOfNotNull(LocalClock.timeText(minuteOfDay,second),billNote(state).takeIf{it.isNotBlank()},tags.takeIf{it.isNotBlank()},if(!affectsBalance||fundsDetached||sequence<=state.fundingBoundary)"历史已隔离 · 不改余额" else null,if(planId!=null)"已确认计划" else null).joinToString(" · "),currencyCode)
+
+internal fun Entry.billNote(state: LedgerState): String {
+    val planTitle = planId?.let { id -> state.plans.firstOrNull { it.id == id }?.title }
+    if (planTitle == null) return note
+    if (note.isBlank() || note == RichLedger.CASHFLOW_IMPORT_NOTE || note == planTitle) return planTitle
+    return "$planTitle · $note"
+}

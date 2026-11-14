@@ -55,6 +55,7 @@ private val formSaver = Saver<Form?, List<String>>(
         LaunchedEffect(state!=null,vm.busy) {
             if(state!=null&&!vm.busy){withFrameNanos{};withFrameNanos{};LedgerFlowTiming.once("first_frame_operable",state.entries.size.toLong())}
         }
+        var refundEntryId by rememberSaveable{mutableStateOf<String?>(null)}
         var deleteEntryId by remember{mutableStateOf<String?>(null)}
         androidx.activity.compose.BackHandler(enabled=extra!=null&&form==null){extra=null}
         LaunchedEffect(form) { if(form is Form.Entry) vm.clearNotice() }
@@ -89,15 +90,16 @@ private val formSaver = Saver<Form?, List<String>>(
                         topBar = { CashTopBar(destination) },
                         bottomBar = { CashBottomBar(destination) { destination = it; extra=null } }, floatingActionButton = { if(extra==null&&destination in 0..1)FloatingActionButton(containerColor = LedgerGreen, contentColor = Color.White, onClick = { form = Form.Entry() }) { Text("＋", style = MaterialTheme.typography.headlineMedium) } }) { padding ->
                         val onEntry:(Entry)->Unit={form=Form.Entry(it.id)}
+                        val onRefund:(Entry)->Unit={refundEntryId=it.id}
                         when(extra){
                             "data"->DataManagementScreen(state,padding,vm){extra=null}
                             "categories"->CategoriesScreen(state,padding,vm){extra=null}
                             "debts"->DebtsScreen(state,padding,vm,{extra=null},onEntry)
                             "settings"->FullCashflowPage(2,state,padding,vm){id->selectedPlanId=state.plans.firstOrNull{it.sequence==id}?.id}
                             else->when(destination){
-                                0->HomeScreen(state,padding,vm,{form=Form.Balance()},{destination=3},onEntry,{form=Form.Entry()},{destination=1},{deleteEntryId=it.id})
-                                1->RecordsScreen(state,padding,onEntry){deleteEntryId=it.id}
-                                2->StatisticsScreen(state,padding,onEntry){deleteEntryId=it.id}
+                                0->HomeScreen(state,padding,vm,{form=Form.Balance()},{destination=3},onEntry,{form=Form.Entry()},{destination=1},{deleteEntryId=it.id},onRefund)
+                                1->RecordsScreen(state,padding,onEntry,{deleteEntryId=it.id},onRefund)
+                                2->StatisticsScreen(state,padding,onEntry,{deleteEntryId=it.id},onRefund)
                                 3->FullCashflowPage(0,state,padding,vm){id->selectedPlanId=state.plans.firstOrNull{it.sequence==id}?.id}
                                 4->FullCashflowPage(1,state,padding,vm){id->selectedPlanId=state.plans.firstOrNull{it.sequence==id}?.id}
                                 else->ManageScreen(state,padding,vm,{extra=it},{export.launch("记账与现金流-${LedgerCalendar.format(LocalClock.today())}.json")},{restore.launch(arrayOf("application/json","text/plain","application/octet-stream"))},{exportPrevious.launch("操作前备份-${LedgerCalendar.format(LocalClock.today())}.json")})
@@ -111,6 +113,7 @@ private val formSaver = Saver<Form?, List<String>>(
                 }
             }
         }
+        if(state!=null)refundEntryId?.let{id->RefundEntryDialog(state,id,vm){refundEntryId=null}}
         if(state!=null)deleteEntryId?.let{id->EntryDeleteDialog(state,id,vm){deleteEntryId=null}}
         state?.plans?.firstOrNull { it.id == selectedPlanId }?.let { plan ->
             OccurrencesDialog(state,plan,vm,{selectedPlanId=null},{selectedPlanId=null;form=Form.Plan(plan.id)})

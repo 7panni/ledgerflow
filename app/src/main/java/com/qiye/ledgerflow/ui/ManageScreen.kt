@@ -20,10 +20,14 @@ import com.qiye.ledgerflow.BuildConfig
 import com.qiye.ledgerflow.core.*
 
 @Composable fun ManageScreen(state:LedgerState,padding:PaddingValues,vm:LedgerViewModel,onFeature:(String)->Unit,onExport:()->Unit,onRestore:()->Unit,onExportPrevious:()->Unit){
+    var entryDefaults by remember{mutableStateOf(false)}
+    var accountOrder by remember{mutableStateOf(false)}
     var settings by remember{mutableStateOf(false)};var start by remember(state.settings.monthStartDay){mutableStateOf(state.settings.monthStartDay.toString())};var error by remember{mutableStateOf<String?>(null)};var showCorrections by remember{mutableStateOf(false)};var cycleDetails by remember{mutableStateOf(false)}
     LazyColumn(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),contentPadding=PaddingValues(14.dp,0.dp,14.dp,24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
         item{SectionTitle("记账设置")}
         item{ManageGroup{
+            ManageRow("默认账户顺序","按余额选择"){accountOrder=true};HorizontalDivider(color=Line,thickness=.5.dp)
+            ManageRow("日常支出默认值","分类 / 预算"){entryDefaults=true};HorizontalDivider(color=Line,thickness=.5.dp)
             ManageRow("分类管理"){onFeature("categories")};HorizontalDivider(color=Line,thickness=.5.dp)
             ManageRow("借贷管理"){onFeature("debts")};HorizontalDivider(color=Line,thickness=.5.dp)
             ManageRow("每月账期","每月${state.settings.monthStartDay}日起"){settings=true}
@@ -50,6 +54,8 @@ import com.qiye.ledgerflow.core.*
         }}
         item{Text("记账与现金流 ${BuildConfig.VERSION_NAME.substringBefore('-')}\n本机离线保存 · 桌面可添加快速记账＋",fontSize=10.sp,color=Muted)}
     }
+    if(entryDefaults)ExpenseDefaultsDialog(state,vm){entryDefaults=false}
+    if(accountOrder)DefaultAccountOrderDialog(state,vm){accountOrder=false}
     if(settings)AlertDialog(onDismissRequest={if(!vm.busy)settings=false},title={Text("每月账期")},text={Column(Modifier.heightIn(max=440.dp).verticalScroll(rememberScrollState())){
         OutlinedTextField(start,{start=it},label={Text("每月起始日（1—31）")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
         val chosen=start.toIntOrNull()?.takeIf{it in 1..31}

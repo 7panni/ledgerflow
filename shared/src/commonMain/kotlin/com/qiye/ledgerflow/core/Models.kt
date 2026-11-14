@@ -57,7 +57,10 @@ data class SettledOccurrence(val planId:String,val originalEpochDay:Long,val act
 data class FrozenBudgetSpend(val budgetId:Long,val cycleStart:Long,val amountMinor:Long,val capturedSequence:Long)
 
 data class LedgerSettings(val monthStartDay: Int = 1,
-    val cashflow: AppSettingsEntity = AppSettingsEntity(onboardingCompleted = true, seeded = true))
+    val cashflow: AppSettingsEntity = AppSettingsEntity(onboardingCompleted = true, seeded = true),
+    val defaultAccountOrder: List<String> = emptyList(),
+    val defaultExpenseCategoryId: String? = null,
+    val defaultExpenseExcludesBudget: Boolean = false)
 
 data class DebtArchive(val debtIds:List<String>,val entryIds:List<String>,val contentStamp:String="")
 

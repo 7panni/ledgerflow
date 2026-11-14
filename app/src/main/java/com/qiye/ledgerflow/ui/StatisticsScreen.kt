@@ -28,7 +28,7 @@ import java.util.Locale
 private val categoryColors=listOf(Color(0xFF173F34),Color(0xFF6F9B83),Color(0xFFBA8C54),Color(0xFFA64C41),Color(0xFF6C8397),Color(0xFF91806A),Color(0xFF5D7971),Color(0xFFB4A765),Color(0xFF937493),Color(0xFF7F955F),Color(0xFFBA8273),Color(0xFF607B92))
 private fun percent(value:Long,total:Long)=if(value>=0&&total>0)String.format(Locale.ROOT,"%.1f%%",value.toDouble()/total*100)else "—"
 
-@Composable fun StatisticsScreen(state:LedgerState,padding:PaddingValues,onEntry:(Entry)->Unit,onDelete:(Entry)->Unit){
+@Composable fun StatisticsScreen(state:LedgerState,padding:PaddingValues,onEntry:(Entry)->Unit,onDelete:(Entry)->Unit,onRefund:(Entry)->Unit){
     var period by rememberSaveable{mutableStateOf(StatisticsPeriod.MONTH)}
     var offset by rememberSaveable{mutableIntStateOf(0)}
     var mode by rememberSaveable{mutableStateOf(EntryKind.EXPENSE)}
@@ -88,10 +88,11 @@ private fun percent(value:Long,total:Long)=if(value>=0&&total>0)String.format(Lo
     }
     drill?.let{row->AlertDialog(onDismissRequest={drill=null},title={Text(row.category+if(row.subcategory.isNotBlank())" / ${row.subcategory}"else "")},text={Column(Modifier.heightIn(max=440.dp).verticalScroll(rememberScrollState())){
         row.entries.sortedWith(compareByDescending<Entry>{it.epochDay}.thenByDescending{it.minuteOfDay}.thenByDescending{it.second}).forEach{e->
-            key(e.id){EntryActionRow(e.id,entryCanDelete(e),{drill=null;onEntry(e)},{drill=null;onDelete(e)}){rowModifier->Column(rowModifier.fillMaxWidth().padding(vertical=10.dp)){
+            key(e.id){EntryActionRow(e.id,entryCanDelete(e),{drill=null;onEntry(e)},{drill=null;onDelete(e)},
+                onRefund=if(e.kind==EntryKind.EXPENSE)({onRefund(e)})else null){rowModifier->Column(rowModifier.fillMaxWidth().padding(vertical=10.dp)){
                 Text("${LedgerCalendar.format(e.epochDay)} ${LocalClock.timeText(e.minuteOfDay)}",fontSize=10.sp,color=Muted)
                 Text("${e.kind.label()} ${nativeMoney(e.amountMinor,e.currencyCode)}",fontSize=13.sp)
-                if(e.note.isNotBlank())Text(e.note,fontSize=11.sp,color=Muted)
+                e.billNote(state).takeIf { it.isNotBlank() }?.let { Text(it,fontSize=11.sp,color=Muted) }
             }}}
         }
     }},confirmButton={TextButton({drill=null}){Text("关闭")}})}

@@ -30,15 +30,15 @@ import com.qiye.ledgerflow.importer.*
     var open by remember{mutableStateOf(false)};val options=state.budgets.filter{it.isActive||it.id==selected}
     if(options.isNotEmpty())Box{OutlinedButton({open=true},Modifier.fillMaxWidth(),shape=RoundedCornerShape(0.dp)){Text(selected?.let{id->options.firstOrNull{it.id==id}?.name}?:if(options.size>1)"未指定预算（不会抵扣多预算）" else "未指定预算")};DropdownMenu(open,{open=false}){DropdownMenuItem({Text("不指定（单预算自动匹配）")},{onSelect(null);open=false});options.forEach{b->DropdownMenuItem({Text(b.name)},{onSelect(b.id);open=false})}}}
 }
-@Composable fun RecordsScreen(state:LedgerState,padding:PaddingValues,onEntry:(Entry)->Unit,onDelete:(Entry)->Unit){
+@Composable fun RecordsScreen(state:LedgerState,padding:PaddingValues,onEntry:(Entry)->Unit,onDelete:(Entry)->Unit,onRefund:(Entry)->Unit){
     var query by rememberSaveable{mutableStateOf("")};var kind by rememberSaveable{mutableStateOf<EntryKind?>(null)}
-    val selected=remember(state,query,kind){state.entries.filter{e->(kind==null||e.kind==kind)&& (query.isBlank()||listOf(e.category,e.subcategory,e.note,e.tags,state.accountName(e.accountId),LedgerCalendar.format(e.epochDay),e.kind.label(),CurrencyUnits.format(e.amountMinor,e.currencyCode)).any{it.contains(query,true)})}.sortedWith(compareByDescending<Entry>{it.epochDay}.thenByDescending{it.minuteOfDay}.thenByDescending{it.second}.thenByDescending{it.sequence})}
+    val selected=remember(state,query,kind){state.entries.filter{e->(kind==null||e.kind==kind)&& (query.isBlank()||listOf(e.category,e.subcategory,e.billNote(state),e.tags,state.accountName(e.accountId),LedgerCalendar.format(e.epochDay),e.kind.label(),CurrencyUnits.format(e.amountMinor,e.currencyCode)).any{it.contains(query,true)})}.sortedWith(compareByDescending<Entry>{it.epochDay}.thenByDescending{it.minuteOfDay}.thenByDescending{it.second}.thenByDescending{it.sequence})}
     LazyColumn(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),contentPadding=PaddingValues(14.dp,0.dp,14.dp,86.dp),verticalArrangement=Arrangement.spacedBy(9.dp)){
         item{OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),label={Text("搜索分类、备注、标签、账户、日期或金额")},singleLine=true)}
         item{Row(Modifier.horizontalScroll(rememberScrollState())){FilterChip(kind==null,{kind=null},{Text("全部")});listOf(EntryKind.EXPENSE,EntryKind.INCOME,EntryKind.TRANSFER,EntryKind.REFUND).forEach{v->FilterChip(kind==v,{kind=v},{Text(v.label(),fontSize=11.sp)})}}}
         item{Text("共 ${selected.size} 条 · 其他币种按原币显示",fontSize=10.sp,color=Muted)}
         if(selected.isEmpty())item{EmptyHint("没有匹配的实际账目。")}
-        selected.groupBy{it.epochDay}.forEach{(day,entries)->item(key=day){Column(verticalArrangement=Arrangement.spacedBy(6.dp)){Text(LedgerCalendar.format(day),fontSize=10.sp,color=Muted);ActualEntryCard(state,entries,onDelete,onEntry)}}}
+        selected.groupBy{it.epochDay}.forEach{(day,entries)->item(key=day){Column(verticalArrangement=Arrangement.spacedBy(6.dp)){Text(LedgerCalendar.format(day),fontSize=10.sp,color=Muted);ActualEntryCard(state,entries,onDelete,onEntry,onRefund)}}}
     }
 }
 @Composable fun CategoriesScreen(state:LedgerState,padding:PaddingValues,vm:LedgerViewModel,onBack:()->Unit){
